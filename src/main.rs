@@ -223,14 +223,21 @@ mod annealing {
         let mut best_score = cur_score;
         let mut iter = 0usize;
         let mut accepted = 0usize;
+        let temp_ratio_ln = (end_temp / start_temp).ln();
 
-        while !timer.is_over() {
+        loop {
+            let elapsed_sec = timer.elapsed_sec();
+            if timer.is_over_elapsed(elapsed_sec) {
+                break;
+            }
+
             iter += 1;
             let Some(nb) = neighbor(&cur, rng) else {
                 continue;
             };
 
-            let t = start_temp * (end_temp / start_temp).powf(timer.progress()).max(1e-12);
+            let progress = timer.progress_from_elapsed(elapsed_sec);
+            let t = start_temp * (temp_ratio_ln * progress).exp().max(1e-12);
             apply(&mut cur, &nb);
             let nxt_score = score(&cur);
             let diff = if maximize {
@@ -268,7 +275,7 @@ mod annealing {
 }
 
 mod beam {
-    use rustc_hash::FxHashSet;
+    use rustc_hash::FxHashMap;
 
     pub fn run<S, A, FScore, FTerminal, FEnum, FApply, FKey>(
         initial: S,
@@ -292,48 +299,94 @@ mod beam {
         let mut best = initial.clone();
         let mut best_score = score(&best);
         let mut cur = vec![initial];
+        let mut next_states: Vec<(S, i64)> = Vec::new();
+        let mut actions = Vec::new();
+        let mut best_by_key: FxHashMap<u64, (S, i64)> = FxHashMap::default();
 
         for d in 0..depth {
             let cur_width = cur.len();
-            let mut nxt = Vec::new();
+            best_by_key.clear();
+
             for st in &cur {
                 if is_terminal(st) {
-                    nxt.push(st.clone());
+                    let sc = score(st);
+                    let key = dedup_key(st);
+                    if let Some((kept_state, kept_score)) = best_by_key.get_mut(&key) {
+                        if sc > *kept_score {
+                            *kept_state = st.clone();
+                            *kept_score = sc;
+                        }
+                    } else {
+                        best_by_key.insert(key, (st.clone(), sc));
+                    }
                     continue;
                 }
-                let mut actions = Vec::new();
+
+                actions.clear();
                 enumerate_actions(st, &mut actions);
-                for a in actions {
-                    nxt.push(apply_action(st, &a));
+                for a in &actions {
+                    let nxt = apply_action(st, a);
+                    let sc = score(&nxt);
+                    let key = dedup_key(&nxt);
+                    if let Some((kept_state, kept_score)) = best_by_key.get_mut(&key) {
+                        if sc > *kept_score {
+                            *kept_state = nxt;
+                            *kept_score = sc;
+                        }
+                    } else {
+                        best_by_key.insert(key, (nxt, sc));
+                    }
                 }
             }
 
-            if nxt.is_empty() {
+            if best_by_key.is_empty() {
                 break;
             }
 
-            nxt.sort_by_key(|s| std::cmp::Reverse(score(s)));
-            let mut seen = FxHashSet::default();
-            nxt.retain(|s| seen.insert(dedup_key(s)));
-            if nxt.len() > width {
-                nxt.truncate(width);
+            next_states.clear();
+            next_states.reserve(best_by_key.len());
+            for (_, (st, sc)) in best_by_key.drain() {
+                next_states.push((st, sc));
+            }
+
+            if width == 0 {
+                cur.clear();
+                break;
+            }
+
+            if next_states.len() > width {
+                next_states.select_nth_unstable_by(width - 1, |a, b| b.1.cmp(&a.1));
+                next_states.truncate(width);
+            }
+
+            let mut layer_best_score = i64::MIN;
+            let mut layer_best_index: Option<usize> = None;
+            for (i, (_, sc)) in next_states.iter().enumerate() {
+                if *sc > layer_best_score {
+                    layer_best_score = *sc;
+                    layer_best_index = Some(i);
+                }
             }
 
             trace!(
                 "[BEAM] depth={} cur_width={} next_width={}",
                 d,
                 cur_width,
-                nxt.len(),
+                next_states.len(),
             );
 
-            if let Some(top) = nxt.first() {
-                let sc = score(top);
-                if sc > best_score {
-                    best = top.clone();
-                    best_score = sc;
+            if let Some(top_i) = layer_best_index {
+                if layer_best_score > best_score {
+                    best = next_states[top_i].0.clone();
+                    best_score = layer_best_score;
                 }
             }
-            cur = nxt;
+
+            cur.clear();
+            cur.reserve(next_states.len());
+            for (st, _) in next_states.drain(..) {
+                cur.push(st);
+            }
         }
 
         trace!("[BEAM] best_score={}", best_score);
@@ -434,13 +487,14 @@ mod greedy {
     {
         let mut best = cur.clone();
         let mut best_score = score(&best);
+        let mut actions = Vec::new();
 
         for depth in 0..max_depth {
             if is_terminal(&cur) {
                 break;
             }
 
-            let mut actions = Vec::new();
+            actions.clear();
             enumerate_actions(&cur, &mut actions);
             if actions.is_empty() {
                 break;
@@ -468,7 +522,7 @@ mod greedy {
             };
 
             cur = next_state;
-            let cur_score = score(&cur);
+            let cur_score = chosen_score;
             let better_than_best = if maximize {
                 cur_score > best_score
             } else {
@@ -507,11 +561,26 @@ mod util {
         }
 
         pub fn is_over(&self) -> bool {
-            self.start.elapsed().as_secs_f64() >= self.limit_sec
+            self.is_over_elapsed(self.elapsed_sec())
         }
 
         pub fn progress(&self) -> f64 {
-            (self.start.elapsed().as_secs_f64() / self.limit_sec).clamp(0.0, 1.0)
+            self.progress_from_elapsed(self.elapsed_sec())
+        }
+
+        #[inline(always)]
+        pub fn elapsed_sec(&self) -> f64 {
+            self.start.elapsed().as_secs_f64()
+        }
+
+        #[inline(always)]
+        pub fn is_over_elapsed(&self, elapsed_sec: f64) -> bool {
+            elapsed_sec >= self.limit_sec
+        }
+
+        #[inline(always)]
+        pub fn progress_from_elapsed(&self, elapsed_sec: f64) -> f64 {
+            (elapsed_sec / self.limit_sec).clamp(0.0, 1.0)
         }
     }
 
