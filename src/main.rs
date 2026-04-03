@@ -6,6 +6,9 @@ const END_TEMP: f64 = 1e1;
 const BEAM_WIDTH: usize = 200;
 const BEAM_DEPTH: usize = 60;
 const GREEDY_DEPTH: usize = 1_000_000;
+
+const SEED: u64 = 0; // 乱数シード。0 のときはデフォルト値を使う。
+
 // score が大きいほど良いなら true、小さいほど良いなら false。
 const MAXIMIZE: bool = true;
 
@@ -41,7 +44,7 @@ fn solve(input: &problem::Input) -> problem::State {
         SolverType::SA => {
             // 焼きなまし: 時間いっぱいまで近傍遷移を試す。
             let timer = util::TimeKeeper::new(TIME_LIMIT_SEC);
-            let mut rng = util::rng(1);
+            let mut rng = util::XorShift::new(SEED);
             annealing::run(
                 initial,
                 &mut rng,
@@ -58,7 +61,7 @@ fn solve(input: &problem::Input) -> problem::State {
         SolverType::HillClimb => {
             // 山登り: 改善遷移のみ受理する。
             let timer = util::TimeKeeper::new(TIME_LIMIT_SEC);
-            let mut rng = util::rng(1);
+            let mut rng = util::XorShift::new(SEED);
             hill_climb::run(
                 initial,
                 &mut rng,
@@ -485,8 +488,10 @@ mod greedy {
 }
 
 mod util {
-    use rand_pcg::Pcg64Mcg;
+    use rand::{Error, RngCore};
     use std::time::Instant;
+
+    const DEFAULT_SEED: u64 = 88172645463393265;
 
     pub struct TimeKeeper {
         start: Instant,
@@ -510,7 +515,38 @@ mod util {
         }
     }
 
-    pub fn rng(seed: u64) -> Pcg64Mcg {
-        Pcg64Mcg::new(seed as u128)
+    pub struct XorShift(u64);
+    impl XorShift {
+        pub fn new(seed: u64) -> Self {
+            Self(if seed == 0 { DEFAULT_SEED } else { seed })
+        }
+
+        #[inline(always)]
+        fn next(&mut self) -> u64 {
+            self.0 ^= self.0 << 13;
+            self.0 ^= self.0 >> 7;
+            self.0 ^= self.0 << 17;
+            self.0
+        }
+    }
+    impl RngCore for XorShift {
+        #[inline(always)]
+        fn next_u32(&mut self) -> u32 {
+            self.next() as u32
+        }
+
+        #[inline(always)]
+        fn next_u64(&mut self) -> u64 {
+            self.next()
+        }
+
+        fn fill_bytes(&mut self, dest: &mut [u8]) {
+            rand_core::impls::fill_bytes_via_next(self, dest);
+        }
+
+        fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Error> {
+            self.fill_bytes(dest);
+            Ok(())
+        }
     }
 }
