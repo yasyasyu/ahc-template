@@ -106,7 +106,7 @@ foreach ($line in $filtered) {
     }
 }
 
-$outPath = Join-Path $repoRoot $OutFile
+$outPath = Join-Path $srcDir $OutFile
 Set-Content -Path $outPath -Value $output -Encoding utf8NoBOM
 
 $rustfmt = Get-Command rustfmt -ErrorAction SilentlyContinue

@@ -1,5 +1,6 @@
 #![allow(dead_code, non_snake_case, unused_macros)]
 
+// テンプレート: https://github.com/yasyasyu/ahc-template
 // 各アルゴリズムモジュールは src/ 以下に分割してある。
 // 提出時に不要なものだけを削って1ファイルにまとめたい場合は tools/bundle.ps1 を使う。
 // (mod 宣言・solve() 内の対応する分岐は `// BUNDLE:<KEY>-BEGIN`〜`-END` で囲ってある)

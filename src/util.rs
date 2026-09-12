@@ -1,4 +1,4 @@
-use rand::{Error, RngCore};
+use rand::RngCore;
 use std::time::Instant;
 
 const DEFAULT_SEED: u64 = 88172645463393265;
@@ -169,10 +169,5 @@ impl RngCore for XorShift {
 
     fn fill_bytes(&mut self, dest: &mut [u8]) {
         rand_core::impls::fill_bytes_via_next(self, dest);
-    }
-
-    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Error> {
-        self.fill_bytes(dest);
-        Ok(())
     }
 }

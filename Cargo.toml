@@ -3,7 +3,7 @@ RUST_BACKTRACE=1
 [package]
 name = "ahc"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 
@@ -43,14 +43,14 @@ ac-library-rs= "=0.1.1"
 #nalgebra= "=0.32.3"
 #alga= "=0.9.3"
 #libm= "=0.2.7"
-rand= "=0.8.5"
-getrandom= "=0.2.10"
+rand= "0.9"
+getrandom= "0.3"
 
-rand_chacha= "=0.3.1"
-rand_core= "=0.6.4"
-rand_hc= "=0.3.2"
-rand_pcg= "=0.3.1"
-rand_distr= "=0.4.3"
+rand_chacha= "0.9"
+rand_core= "0.9"
+rand_hc= "0.4"
+rand_pcg= "0.9"
+rand_distr= "0.5"
 #petgraph= "=0.6.3"
 #indexmap= "=2.0.0"
 #regex= "=1.9.1"
@@ -74,3 +74,13 @@ rustc-hash= "=1.1.0"
 [features]
 local = []
 local-params = []
+submit = []
+
+[[bin]]
+name = "ahc"
+path = "src/main.rs"
+
+[[bin]]
+name = "submit"
+path = "src/submit.rs"
+required-features = ["submit"]

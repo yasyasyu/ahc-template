@@ -49,7 +49,7 @@ where
             (cur_score - nxt_score) as f64
         };
 
-        if diff >= 0.0 || rng.gen::<f64>() < (diff / t).exp() {
+        if diff >= 0.0 || rng.random::<f64>() < (diff / t).exp() {
             accepted += 1;
             cur_score = nxt_score;
             let improved = if maximize {
