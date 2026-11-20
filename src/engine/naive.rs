@@ -1,5 +1,6 @@
-use crate::problem::{Input, NaiveState};
-use crate::util::TimeKeeper;
+use crate::engine::traits::NaiveState;
+use crate::engine::util::TimeKeeper;
+use crate::problem::Input;
 
 /// 愚直解・直接構築: 汎用探索の枠に乗らない解法を problem 側の solve_naive に任せる。
 ///

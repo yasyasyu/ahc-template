@@ -1,7 +1,8 @@
 use rand::Rng;
 
-use crate::problem::{Input, LocalSearchState};
-use crate::util::TimeKeeper;
+use crate::engine::traits::LocalSearchState;
+use crate::engine::util::TimeKeeper;
+use crate::problem::Input;
 
 /// 焼きなまし法: 時間いっぱいまで近傍遷移を試す。
 ///

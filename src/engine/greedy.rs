@@ -1,5 +1,6 @@
-use crate::problem::{Input, TreeSearchState};
-use crate::util::TimeKeeper;
+use crate::engine::traits::TreeSearchState;
+use crate::engine::util::TimeKeeper;
+use crate::problem::Input;
 
 /// 貪欲法: 各ステップで最良の1手を選ぶ。
 ///

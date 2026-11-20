@@ -1,6 +1,23 @@
 ## usage
 `cargo generate --git https://github.com/yasyasyu/ahc-template.git --name ahc`
 
+## layout
+問題ごとに触るのは `src/main.rs` と `src/problem.rs` だけです。`src/engine/` は共通基盤なので基本的に触りません。
+
+```
+src/
+├── main.rs          # ソルバ選択 (SOLVER_TYPE) と探索パラメータの既定値   ← 触る
+├── problem.rs       # Input / State / 評価関数 / 遷移 / 出力               ← 触る
+└── engine/          # 共通基盤 (触らなくてよい)
+    ├── mod.rs       # solve(): ソルバの振り分けと postprocess 呼び出し
+    ├── traits.rs    # 各ソルバが State に要求するトレイト定義
+    ├── annealing.rs / hill_climb.rs / greedy.rs / beam.rs / naive.rs
+    ├── options.rs   # params.toml の読み込み
+    ├── util.rs      # TimeKeeper / XorShift / Track など
+    └── macros.rs    # trace! / static_data!
+tools/bundle.ps1     # 提出用に1ファイルへまとめる
+```
+
 ## minimum tasks
 まず埋める必要があるものを、共通部分とソルバ別に分けて整理します。
 
@@ -32,9 +49,15 @@
 任意の拡張ポイント:
 - `State::enumerate_actions_with_timer`: 列挙途中で時間を見て打ち切りたいときに使う
 - `problem::postprocess`: 本探索のあとに余り時間で解を磨きたいときに使う
-- `options::Config` と `params.toml`: 定数を外出ししてローカル調整したいときだけ使う
+- `main.rs` の `DEFAULT_*` 定数と `params.toml`: 探索パラメータの調整 (`params.toml` はローカル調整用)
 
 最小構成で始めるなら、使うソルバを 1 つだけ決めて、その系統の必須メソッドだけ先に埋めるのがおすすめです。
+
+## bundle
+提出用に1ファイルへまとめる場合 (不要なソルバは削られる):
+`./tools/bundle.ps1 -Algorithms sa` → `src/submit.rs`
+
+生成物の確認: `cargo build --release --features submit --bin submit`
 
 ## local tuning
 通常実行:
@@ -64,16 +87,16 @@ solver_type = "sa"
 ## utility helpers
 テンプレートには、問題依存コードを書き始める前にそのまま使える補助をいくつか入れています。
 
-- `util::TimeBudget`: 本探索と postprocess の時間を分けるための薄いラッパ
-- `util::TimeKeeper::multi_start_deadlines(n)`: 残り時間を `n` 回の再試行に均等配分する deadline 列
-- `util::Track<T>`: 親ポインタ付きの復元用トラック
+- `engine::util::TimeBudget`: 本探索と postprocess の時間を分けるための薄いラッパ
+- `engine::util::TimeKeeper::multi_start_deadlines(n)`: 残り時間を `n` 回の再試行に均等配分する deadline 列
+- `engine::util::Track<T>`: 親ポインタ付きの復元用トラック
 - `static_data!`: `OnceLock` ベースの前計算キャッシュ
-- `util::XorShift::random_usize` / `shuffle`: 近傍生成や候補順シャッフル用の軽量補助
+- `engine::util::XorShift::random_usize` / `shuffle`: 近傍生成や候補順シャッフル用の軽量補助
 
 例:
 
 ```rust
-let budget = util::TimeBudget::new(1.95, 0.03);
+let budget = engine::util::TimeBudget::new(1.95, 0.03);
 let main_timer = budget.main_timer();
 
 for deadline in main_timer.multi_start_deadlines(3) {
@@ -82,7 +105,7 @@ for deadline in main_timer.multi_start_deadlines(3) {
 	}
 }
 
-let mut track = util::Track::new();
+let mut track = engine::util::Track::new();
 let root = track.push(!0, 0usize);
 let leaf = track.push(root, 1usize);
 let path = track.restore(leaf);

@@ -1,5 +1,6 @@
-use crate::problem::{BeamSearchState, Input};
-use crate::util::TimeKeeper;
+use crate::engine::traits::BeamSearchState;
+use crate::engine::util::TimeKeeper;
+use crate::problem::Input;
 use rustc_hash::FxHashMap;
 
 /// ビームサーチ: 深さと幅を固定して段階的に展開する。
@@ -24,11 +25,7 @@ where
     let mut best_by_key: FxHashMap<u64, (P, i64)> = FxHashMap::default();
 
     let is_better = |lhs: i64, rhs: i64| {
-        if maximize {
-            lhs > rhs
-        } else {
-            lhs < rhs
-        }
+        if maximize { lhs > rhs } else { lhs < rhs }
     };
 
     for d in 0..depth {

@@ -3,12 +3,12 @@
     src/ 以下に分割されたテンプレートを、提出用の単一ファイルにまとめる。
 
 .DESCRIPTION
-    src/main.rs は `// BUNDLE:<KEY>-BEGIN` 〜 `// BUNDLE:<KEY>-END` で
+    src/engine/mod.rs は `// BUNDLE:<KEY>-BEGIN` 〜 `// BUNDLE:<KEY>-END` で
     各探索アルゴリズム (SA / HILLCLIMB / GREEDY / BEAM / NAIVE) の mod 宣言と
     solve() 内の対応する match 分岐を囲んである。
     -Algorithms で選ばなかったアルゴリズムはその区間ごと削除し、
-    残った mod 宣言はファイル内容でインライン展開して1ファイルに結合する。
-    util / problem / options は常に含める。
+    main.rs から辿れる `mod xxx;` 宣言 (xxx.rs / xxx/mod.rs) を再帰的に
+    インライン展開して1ファイルに結合する。マーカーはどのファイルに書いてもよい。
 
 .PARAMETER Algorithms
     含めるアルゴリズム。省略時は全て含める（絞り込みなし）。
@@ -36,16 +36,6 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 $srcDir = Join-Path $repoRoot "src"
 
 $selectedKeys = $Algorithms | ForEach-Object { $_.ToUpper() }
-$fileForMod = @{
-    util       = "util.rs"
-    problem    = "problem.rs"
-    options    = "options.rs"
-    annealing  = "annealing.rs"
-    hill_climb = "hill_climb.rs"
-    greedy     = "greedy.rs"
-    beam       = "beam.rs"
-    naive      = "naive.rs"
-}
 
 function Expand-BundleMarkers {
     param([string[]]$Lines, [string[]]$SelectedKeys)
@@ -84,28 +74,44 @@ function Expand-BundleMarkers {
     return , $result
 }
 
-$mainLines = Get-Content (Join-Path $srcDir "main.rs")
-$filtered = Expand-BundleMarkers -Lines $mainLines -SelectedKeys $selectedKeys
+# `mod foo;` を `mod foo { <foo.rs or foo/mod.rs の中身> }` に再帰的に置き換える。
+# $ModDir は、そのファイル内の子モジュールを探すディレクトリ。
+function Expand-Module {
+    param([string]$FilePath, [string]$ModDir)
 
-$output = New-Object System.Collections.Generic.List[string]
-foreach ($line in $filtered) {
-    if ($line -match '^mod\s+(\w+);\s*$') {
-        $modName = $Matches[1]
-        $fileName = $fileForMod[$modName]
-        if (-not $fileName) {
-            throw "Unknown module '$modName' referenced in main.rs — add it to `$fileForMod in bundle.ps1."
+    $lines = Expand-BundleMarkers -Lines (Get-Content $FilePath) -SelectedKeys $selectedKeys
+    $result = New-Object System.Collections.Generic.List[string]
+    foreach ($line in $lines) {
+        if ($line -match '^(\s*)((?:pub(?:\([^)]*\))?\s+)?mod\s+(\w+));\s*$') {
+            $indent = $Matches[1]
+            $decl = $Matches[2]
+            $modName = $Matches[3]
+            $flat = Join-Path $ModDir "$modName.rs"
+            $nested = Join-Path (Join-Path $ModDir $modName) "mod.rs"
+            if (Test-Path $flat) {
+                $childFile = $flat
+            }
+            elseif (Test-Path $nested) {
+                $childFile = $nested
+            }
+            else {
+                throw "Module '$modName' declared in $FilePath was not found ($flat or $nested)."
+            }
+            $childLines = Expand-Module -FilePath $childFile -ModDir (Join-Path $ModDir $modName)
+            $result.Add("$indent$decl {")
+            foreach ($childLine in $childLines) {
+                $result.Add("$indent    $childLine")
+            }
+            $result.Add("$indent}")
         }
-        $modContent = Get-Content (Join-Path $srcDir $fileName)
-        $output.Add("mod $modName {")
-        foreach ($modLine in $modContent) {
-            $output.Add("    $modLine")
+        else {
+            $result.Add($line)
         }
-        $output.Add("}")
     }
-    else {
-        $output.Add($line)
-    }
+    return , $result
 }
+
+$output = Expand-Module -FilePath (Join-Path $srcDir "main.rs") -ModDir $srcDir
 
 $outPath = Join-Path $srcDir $OutFile
 Set-Content -Path $outPath -Value $output -Encoding utf8NoBOM

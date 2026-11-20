@@ -1,7 +1,8 @@
+use crate::engine::SolverType;
 use crate::{
-    SolverType, DEFAULT_BEAM_DEPTH, DEFAULT_BEAM_WIDTH, DEFAULT_END_TEMP, DEFAULT_GREEDY_DEPTH,
-    DEFAULT_RESERVE_TIME_SEC, DEFAULT_SEED, DEFAULT_START_TEMP, DEFAULT_TIME_LIMIT_SEC,
-    SOLVER_TYPE,
+    DEFAULT_BEAM_DEPTH, DEFAULT_BEAM_WIDTH, DEFAULT_END_TEMP, DEFAULT_GREEDY_DEPTH,
+    DEFAULT_MAXIMIZE, DEFAULT_RESERVE_TIME_SEC, DEFAULT_SEED, DEFAULT_START_TEMP,
+    DEFAULT_TIME_LIMIT_SEC, SOLVER_TYPE,
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -24,7 +25,7 @@ impl SearchConfig {
             end_temp: DEFAULT_END_TEMP,
             greedy_depth: DEFAULT_GREEDY_DEPTH,
             seed: DEFAULT_SEED,
-            maximize: true,
+            maximize: DEFAULT_MAXIMIZE,
         }
     }
 }

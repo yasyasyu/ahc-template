@@ -1,30 +1,25 @@
 #![allow(dead_code, non_snake_case, unused_macros)]
 
 // テンプレート: https://github.com/yasyasyu/ahc-template
-// 各アルゴリズムモジュールは src/ 以下に分割してある。
-// 提出時に不要なものだけを削って1ファイルにまとめたい場合は tools/bundle.ps1 を使う。
-// (mod 宣言・solve() 内の対応する分岐は `// BUNDLE:<KEY>-BEGIN`〜`-END` で囲ってある)
-// BUNDLE:SA-BEGIN
-mod annealing;
-// BUNDLE:SA-END
-// BUNDLE:BEAM-BEGIN
-mod beam;
-// BUNDLE:BEAM-END
-// BUNDLE:GREEDY-BEGIN
-mod greedy;
-// BUNDLE:GREEDY-END
-// BUNDLE:HILLCLIMB-BEGIN
-mod hill_climb;
-// BUNDLE:HILLCLIMB-END
-// BUNDLE:NAIVE-BEGIN
-mod naive;
-// BUNDLE:NAIVE-END
-mod options;
+//
+// 問題ごとに触るのは次の2ファイルだけ:
+// - src/main.rs    : ソルバ選択と探索パラメータの既定値 (このファイル)
+// - src/problem.rs : 入力・状態・評価関数・遷移・出力
+// src/engine/ 以下は探索アルゴリズムなどの共通基盤なので触らなくてよい。
+//
+// 提出時に不要なアルゴリズムを削って1ファイルにまとめたい場合は tools/bundle.ps1 を使う。
+
+#[macro_use]
+mod engine;
 mod problem;
-mod util;
+
+use crate::engine::SolverType;
+
+const SOLVER_TYPE: SolverType = SolverType::SA;
 
 const DEFAULT_TIME_LIMIT_SEC: f64 = 1.95;
 const DEFAULT_RESERVE_TIME_SEC: f64 = 0.03;
+const DEFAULT_MAXIMIZE: bool = true; // 評価値が大きいほど良いなら true
 
 const DEFAULT_START_TEMP: f64 = 1e4;
 const DEFAULT_END_TEMP: f64 = 1e1;
@@ -33,104 +28,9 @@ const DEFAULT_BEAM_DEPTH: usize = 60;
 const DEFAULT_GREEDY_DEPTH: usize = 1_000_000;
 const DEFAULT_SEED: u64 = 0; // 乱数シード。0 のときはデフォルト値を使う。
 
-#[macro_export]
-macro_rules! trace {
-    ($($arg:tt)*) => {
-        if cfg!(feature = "local") {
-            eprintln!($($arg)*);
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! static_data {
-    ($name:ident:$ty:ty|$expr:expr) => {
-        fn $name() -> &'static $ty {
-            use std::sync::OnceLock;
-            static DATA: OnceLock<$ty> = OnceLock::new();
-            DATA.get_or_init(|| $expr)
-        }
-    };
-}
-
-const SOLVER_TYPE: SolverType = SolverType::SA;
-
-#[derive(Clone, Copy, Debug)]
-enum SolverType {
-    SA,
-    HillClimb,
-    Greedy,
-    Beam,
-    Naive,
-}
-
 fn main() {
-    let config = options::Config::load();
+    let config = engine::options::Config::load();
     let input = problem::Input::read();
-    let best: problem::State = solve(&input, &config);
+    let best = engine::solve(&input, &config);
     problem::output(&best, &input);
-}
-
-fn solve(input: &problem::Input, config: &options::Config) -> problem::State {
-    // 問題依存の初期解は problem::State::new 側で構築する。
-    let initial = problem::State::new(input);
-    let budget =
-        util::TimeBudget::new(config.search.time_limit_sec, config.search.reserve_time_sec);
-    let main_timer = budget.main_timer();
-
-    let best = match config.solver.solver_type {
-        // BUNDLE:SA-BEGIN
-        SolverType::SA => {
-            // 焼きなまし: 時間いっぱいまで近傍遷移を試す。
-            let mut rng = util::XorShift::new(config.search.seed);
-            annealing::run(
-                initial,
-                input,
-                &mut rng,
-                &main_timer,
-                config.search.start_temp,
-                config.search.end_temp,
-                config.search.maximize,
-            )
-        }
-        // BUNDLE:SA-END
-        // BUNDLE:HILLCLIMB-BEGIN
-        SolverType::HillClimb => {
-            // 山登り: 改善遷移のみ受理する。
-            let mut rng = util::XorShift::new(config.search.seed);
-            hill_climb::run(initial, input, &mut rng, &main_timer, config.search.maximize)
-        }
-        // BUNDLE:HILLCLIMB-END
-        // BUNDLE:GREEDY-BEGIN
-        SolverType::Greedy => {
-            // 貪欲: 各ステップで最良の1手を選ぶ。
-            greedy::run(
-                initial,
-                input,
-                &main_timer,
-                config.search.greedy_depth,
-                config.search.maximize,
-            )
-        }
-        // BUNDLE:GREEDY-END
-        // BUNDLE:BEAM-BEGIN
-        // ビームサーチ: 深さと幅を固定して段階的に展開する。
-        SolverType::Beam => beam::run(
-            initial,
-            input,
-            &main_timer,
-            config.solver.beam_width,
-            config.solver.beam_depth,
-            config.search.maximize,
-        ),
-        // BUNDLE:BEAM-END
-        // BUNDLE:NAIVE-BEGIN
-        // 愚直解・直接構築: problem::NaiveState::solve_naive に書いた解法をそのまま使う。
-        SolverType::Naive => naive::run(initial, input, &main_timer),
-        // BUNDLE:NAIVE-END
-        // BUNDLE:FALLBACK
-    };
-
-    let polish_timer = budget.reserve_timer();
-    problem::postprocess(best, input, &polish_timer)
 }

@@ -1,7 +1,8 @@
 use rand::Rng;
 
-use crate::problem::{Input, LocalSearchState};
-use crate::util::TimeKeeper;
+use crate::engine::traits::LocalSearchState;
+use crate::engine::util::TimeKeeper;
+use crate::problem::Input;
 
 /// 山登り法: annealing と同じ LocalSearchState を使うが、改善遷移のみ受理する
 /// （温度パラメータを持たない分だけ annealing::run より単純）。
