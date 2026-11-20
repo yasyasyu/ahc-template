@@ -24,6 +24,11 @@
 `Beam` を使うならさらに必要:
 - `State::dedup_key`
 
+`Naive` を使うなら追加で必要:
+- `State::solve_naive`: 愚直解・全探索・手書きの構築解など、近傍や候補手の形に乗らない解法をそのまま書く枠
+  - デフォルト実装は初期解をそのまま返す（まず正しい出力を出す確認用）
+  - 小さいケースで他ソルバとスコアを突き合わせたいときや、構築解を SA の初期解にしたいとき（`State::new` から呼ぶ）にも使える
+
 任意の拡張ポイント:
 - `State::enumerate_actions_with_timer`: 列挙途中で時間を見て打ち切りたいときに使う
 - `problem::postprocess`: 本探索のあとに余り時間で解を磨きたいときに使う
@@ -53,7 +58,7 @@ beam_depth = 60
 solver_type = "sa"
 ```
 
-`solver_type` は `sa`, `hill_climb`, `greedy`, `beam` を受け付けます。
+`solver_type` は `sa`, `hill_climb`, `greedy`, `beam`, `naive` を受け付けます。
 テンプレート側では `reserve_time_sec` を終盤の postprocess 用に確保し、`problem::postprocess` で余り時間を使えるようにしています。
 
 ## utility helpers

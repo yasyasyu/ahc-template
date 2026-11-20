@@ -16,6 +16,9 @@ mod greedy;
 // BUNDLE:HILLCLIMB-BEGIN
 mod hill_climb;
 // BUNDLE:HILLCLIMB-END
+// BUNDLE:NAIVE-BEGIN
+mod naive;
+// BUNDLE:NAIVE-END
 mod options;
 mod problem;
 mod util;
@@ -58,6 +61,7 @@ enum SolverType {
     HillClimb,
     Greedy,
     Beam,
+    Naive,
 }
 
 fn main() {
@@ -120,6 +124,10 @@ fn solve(input: &problem::Input, config: &options::Config) -> problem::State {
             config.search.maximize,
         ),
         // BUNDLE:BEAM-END
+        // BUNDLE:NAIVE-BEGIN
+        // 愚直解・直接構築: problem::NaiveState::solve_naive に書いた解法をそのまま使う。
+        SolverType::Naive => naive::run(initial, input, &main_timer),
+        // BUNDLE:NAIVE-END
         // BUNDLE:FALLBACK
     };
 

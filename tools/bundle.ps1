@@ -4,7 +4,7 @@
 
 .DESCRIPTION
     src/main.rs は `// BUNDLE:<KEY>-BEGIN` 〜 `// BUNDLE:<KEY>-END` で
-    各探索アルゴリズム (SA / HILLCLIMB / GREEDY / BEAM) の mod 宣言と
+    各探索アルゴリズム (SA / HILLCLIMB / GREEDY / BEAM / NAIVE) の mod 宣言と
     solve() 内の対応する match 分岐を囲んである。
     -Algorithms で選ばなかったアルゴリズムはその区間ごと削除し、
     残った mod 宣言はファイル内容でインライン展開して1ファイルに結合する。
@@ -12,7 +12,7 @@
 
 .PARAMETER Algorithms
     含めるアルゴリズム。省略時は全て含める（絞り込みなし）。
-    sa, hillclimb, greedy, beam から複数選択可。
+    sa, hillclimb, greedy, beam, naive から複数選択可。
 
 .PARAMETER OutFile
     出力先ファイル名。既定は submit.rs。
@@ -25,8 +25,8 @@
     ./tools/bundle.ps1 -Algorithms sa,beam -OutFile submit_sa_beam.rs
 #>
 param(
-    [ValidateSet("sa", "hillclimb", "greedy", "beam")]
-    [string[]]$Algorithms = @("sa", "hillclimb", "greedy", "beam"),
+    [ValidateSet("sa", "hillclimb", "greedy", "beam", "naive")]
+    [string[]]$Algorithms = @("sa", "hillclimb", "greedy", "beam", "naive"),
     [string]$OutFile = "submit.rs"
 )
 
@@ -44,6 +44,7 @@ $fileForMod = @{
     hill_climb = "hill_climb.rs"
     greedy     = "greedy.rs"
     beam       = "beam.rs"
+    naive      = "naive.rs"
 }
 
 function Expand-BundleMarkers {

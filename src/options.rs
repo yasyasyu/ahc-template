@@ -136,6 +136,7 @@ impl Config {
                         "hill_climb" | "hillclimb" | "HC" => SolverType::HillClimb,
                         "greedy" | "GREEDY" => SolverType::Greedy,
                         "beam" | "BEAM" => SolverType::Beam,
+                        "naive" | "NAIVE" => SolverType::Naive,
                         _ => config.solver.solver_type,
                     };
                 }

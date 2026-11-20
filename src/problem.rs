@@ -107,6 +107,20 @@ pub trait BeamSearchState: TreeSearchState {
     fn dedup_key(&self, input: &Input) -> u64;
 }
 
+/// 愚直解・全探索・手書きの構築解など、汎用探索の枠に収まらない解法の役割(naive)。
+///
+/// 近傍や候補手の形に落とし込まず、Input から直接解を作りたいときに使う。
+/// - 提出前の動作確認用に、まず正しい出力を出す最小解法を書く
+/// - 小さいケースで全探索して、他ソルバのスコアと突き合わせる
+/// - 問題固有の構築アルゴリズムをそのまま書く
+pub trait NaiveState: Scored + Sized {
+    /// initial (State::new の結果) を起点に解を構築して返す。
+    ///
+    /// initial を使わない解法なら無視して一から作ってよい。
+    /// 時間制限を気にする場合は timer を参照する。
+    fn solve_naive(self, input: &Input, timer: &TimeKeeper) -> Self;
+}
+
 impl Scored for State {
     fn score(&self, _input: &Input) -> i64 {
         todo!()
@@ -148,6 +162,13 @@ impl TreeSearchState for State {
 impl BeamSearchState for State {
     fn dedup_key(&self, _input: &Input) -> u64 {
         todo!()
+    }
+}
+
+impl NaiveState for State {
+    fn solve_naive(self, _input: &Input, _timer: &TimeKeeper) -> Self {
+        // 例: 初期解をそのまま返すだけでも「正しい出力を出す」最小解法になる。
+        self
     }
 }
 
