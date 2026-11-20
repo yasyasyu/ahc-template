@@ -1,3 +1,7 @@
 {
-    "rust-analyzer.server.path": "rust-analyzer"
+    // Use the server from the toolchain pinned in rust-toolchain.toml (~ = home folder; change the version here too if you change it)
+    // The extension's bundled server only supports 1.94+, and plain "rust-analyzer" can fall back to stable
+    "rust-analyzer.server.path": "~/.rustup/toolchains/1.89.0-x86_64-pc-windows-msvc/bin/rust-analyzer.exe",
+    // The new extension sends this as a string ("never"), but the 1.89.0 server expects a boolean
+    "rust-analyzer.inlayHints.implicitDrops.enable": false
 }
